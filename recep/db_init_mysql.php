@@ -15,7 +15,7 @@ try {
     $pdo->exec("CREATE DATABASE `slot_db` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
     $pdo->exec("USE `slot_db`");
 
-    // Tablo oluştur
+    // Machines tablosu
     $pdo->exec("
     CREATE TABLE `machines` (
         `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -33,6 +33,62 @@ try {
         INDEX idx_room (room),
         INDEX idx_machine_number (machine_number),
         INDEX idx_maintenance_date (maintenance_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+    
+    // Machine Faults tablosu (Trello entegrasyonu için)
+    $pdo->exec("
+    CREATE TABLE `machine_faults` (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `machine_id` INT,
+        `trello_card_id` VARCHAR(64),
+        `trello_card_url` VARCHAR(255),
+        `fault_title` VARCHAR(255) NOT NULL,
+        `fault_description` TEXT,
+        `status` ENUM('open', 'in_progress', 'resolved') DEFAULT 'open',
+        `priority` ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+        `reported_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        `resolved_date` TIMESTAMP NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
+        INDEX idx_machine_id (machine_id),
+        INDEX idx_trello_card_id (trello_card_id),
+        INDEX idx_status (status),
+        INDEX idx_reported_date (reported_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+    
+    // Maintenance History tablosu (makina geçmişi için)
+    $pdo->exec("
+    CREATE TABLE `maintenance_history` (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `machine_id` INT NOT NULL,
+        `action_type` ENUM('maintenance', 'fault', 'repair', 'note', 'created', 'updated', 'moved') NOT NULL,
+        `details` TEXT,
+        `old_value` TEXT,
+        `new_value` TEXT,
+        `performed_by` VARCHAR(128) DEFAULT 'system',
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
+        INDEX idx_machine_id (machine_id),
+        INDEX idx_action_type (action_type),
+        INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+    
+    // Trello Configuration tablosu
+    $pdo->exec("
+    CREATE TABLE `trello_config` (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `api_key` VARCHAR(255),
+        `api_token` VARCHAR(255),
+        `board_id` VARCHAR(64),
+        `list_id` VARCHAR(64),
+        `last_sync` TIMESTAMP NULL,
+        `sync_enabled` BOOLEAN DEFAULT TRUE,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
     
