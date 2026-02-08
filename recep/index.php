@@ -42,12 +42,18 @@ $cache_buster = time();
         <div class="search-results" id="search-results"></div>
     </div>
     <!-- TRELLO VE ARIZA YÖNETİMİ -->
-    <div style="display:flex; gap:10px; margin-left:15px;">
+    <div style="display:flex; gap:10px; margin-left:15px; flex-wrap: wrap;">
+        <a href="statistics.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px; background: linear-gradient(145deg, #2196f3, #1976d2);">
+            <i class="fas fa-chart-bar"></i> İstatistikler
+        </a>
         <a href="trello_settings.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px;">
-            <i class="fab fa-trello"></i> Trello Ayarları
+            <i class="fab fa-trello"></i> Trello
         </a>
         <a href="faults.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px; background: linear-gradient(145deg, #f44336, #d32f2f);">
             <i class="fas fa-exclamation-triangle"></i> Arızalar
+        </a>
+        <a href="backup.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px; background: linear-gradient(145deg, #9c27b0, #7b1fa2);">
+            <i class="fas fa-database"></i> Yedek
         </a>
     </div>
 </div>
