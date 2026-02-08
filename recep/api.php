@@ -68,6 +68,18 @@ if ($action === 'create') {
         ':x'=>$x, ':y'=>$y, ':size'=>$size, ':rotation'=>$rotation
     ]);
     $id = $pdo->lastInsertId();
+    
+    // History'ye kaydet
+    $stmt = $pdo->prepare("
+        INSERT INTO maintenance_history 
+        (machine_id, action_type, details, performed_by) 
+        VALUES (:machineId, 'created', :details, 'user')
+    ");
+    $stmt->execute([
+        ':machineId'=>$id,
+        ':details'=>"Makina oluşturuldu: {$number} - {$brand} ({$room})"
+    ]);
+    
     $stmt = $pdo->prepare("SELECT * FROM machines WHERE id = :id");
     $stmt->execute([':id'=>$id]);
     $machine = $stmt->fetch();
@@ -110,10 +122,51 @@ if ($action === 'update') {
         jsonExit(['ok'=>false,'error'=>'Eksik alan'],400);
     }
     
+    // Eski değerleri al (history için)
+    $stmt = $pdo->prepare("SELECT * FROM machines WHERE id=:id");
+    $stmt->execute([':id'=>$id]);
+    $oldMachine = $stmt->fetch();
+    
     $stmt = $pdo->prepare("UPDATE machines SET machine_number=:num, brand_model=:brand, maintenance_date=:date, note=:note, updated_at=NOW() WHERE id=:id");
     $stmt->execute([
         ':num'=>$number, ':brand'=>$brand, ':date'=>$date, ':note'=>$note, ':id'=>$id
     ]);
+    
+    // History'ye kaydet
+    if ($oldMachine) {
+        $changes = [];
+        if ($oldMachine['machine_number'] !== $number) $changes[] = "Makina No: {$oldMachine['machine_number']} → {$number}";
+        if ($oldMachine['brand_model'] !== $brand) $changes[] = "Marka: {$oldMachine['brand_model']} → {$brand}";
+        if ($oldMachine['maintenance_date'] !== $date) $changes[] = "Bakım Tarihi: {$oldMachine['maintenance_date']} → {$date}";
+        if ($oldMachine['note'] !== $note) $changes[] = "Not güncellendi";
+        
+        if (!empty($changes)) {
+            $stmt = $pdo->prepare("
+                INSERT INTO maintenance_history 
+                (machine_id, action_type, details, performed_by) 
+                VALUES (:machineId, 'updated', :details, 'user')
+            ");
+            $stmt->execute([
+                ':machineId'=>$id,
+                ':details'=>implode(', ', $changes)
+            ]);
+        }
+        
+        // Eğer bakım tarihi güncellendiyse, ayrı bir maintenance kaydı da ekle
+        if ($oldMachine['maintenance_date'] !== $date) {
+            $stmt = $pdo->prepare("
+                INSERT INTO maintenance_history 
+                (machine_id, action_type, details, old_value, new_value, performed_by) 
+                VALUES (:machineId, 'maintenance', 'Bakım tarihi güncellendi', :oldDate, :newDate, 'user')
+            ");
+            $stmt->execute([
+                ':machineId'=>$id,
+                ':oldDate'=>$oldMachine['maintenance_date'],
+                ':newDate'=>$date
+            ]);
+        }
+    }
+    
     jsonExit(['ok'=>true]);
 }
 
@@ -198,6 +251,196 @@ if ($action === 'batch_update') {
     $stmt->execute($params);
     
     jsonExit(['ok'=>true,'updated_count'=>$stmt->rowCount()]);
+}
+
+// MAKİNA GEÇMİŞİNİ GÖRÜNTÜLE
+if ($action === 'get_history') {
+    $machineId = (int)($_GET['machine_id'] ?? 0);
+    if (!$machineId) jsonExit(['ok'=>false,'error'=>'Eksik machine_id'],400);
+    
+    $stmt = $pdo->prepare("
+        SELECT * FROM maintenance_history 
+        WHERE machine_id = :machineId 
+        ORDER BY created_at DESC
+    ");
+    $stmt->execute([':machineId'=>$machineId]);
+    $history = $stmt->fetchAll();
+    
+    jsonExit(['ok'=>true,'history'=>$history]);
+}
+
+// MAKİNANIN ARIZALARINI GÖRÜNTÜLE
+if ($action === 'get_faults') {
+    $machineId = (int)($_GET['machine_id'] ?? 0);
+    if (!$machineId) jsonExit(['ok'=>false,'error'=>'Eksik machine_id'],400);
+    
+    $stmt = $pdo->prepare("
+        SELECT * FROM machine_faults 
+        WHERE machine_id = :machineId 
+        ORDER BY reported_date DESC
+    ");
+    $stmt->execute([':machineId'=>$machineId]);
+    $faults = $stmt->fetchAll();
+    
+    jsonExit(['ok'=>true,'faults'=>$faults]);
+}
+
+// TÜM ARIZALARI LİSTELE
+if ($action === 'list_all_faults') {
+    $status = $_GET['status'] ?? 'all';
+    
+    $sql = "
+        SELECT mf.*, m.machine_number, m.brand_model, m.room 
+        FROM machine_faults mf
+        LEFT JOIN machines m ON mf.machine_id = m.id
+    ";
+    
+    if ($status !== 'all') {
+        $sql .= " WHERE mf.status = :status";
+    }
+    
+    $sql .= " ORDER BY mf.reported_date DESC";
+    
+    $stmt = $pdo->prepare($sql);
+    if ($status !== 'all') {
+        $stmt->execute([':status'=>$status]);
+    } else {
+        $stmt->execute();
+    }
+    $faults = $stmt->fetchAll();
+    
+    jsonExit(['ok'=>true,'faults'=>$faults]);
+}
+
+// ARIZA DURUMUNU GÜNCELLE
+if ($action === 'update_fault_status') {
+    $faultId = (int)($_POST['fault_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+    
+    if (!$faultId || !$status) jsonExit(['ok'=>false,'error'=>'Eksik alan'],400);
+    
+    $allowedStatuses = ['open', 'in_progress', 'resolved'];
+    if (!in_array($status, $allowedStatuses)) {
+        jsonExit(['ok'=>false,'error'=>'Geçersiz durum'],400);
+    }
+    
+    $resolvedDate = ($status === 'resolved') ? 'NOW()' : 'NULL';
+    
+    $stmt = $pdo->prepare("
+        UPDATE machine_faults 
+        SET status = :status, 
+            resolved_date = $resolvedDate,
+            updated_at = NOW()
+        WHERE id = :faultId
+    ");
+    $stmt->execute([':status'=>$status, ':faultId'=>$faultId]);
+    
+    // History'ye ekle
+    $stmt = $pdo->prepare("SELECT machine_id FROM machine_faults WHERE id = :faultId");
+    $stmt->execute([':faultId'=>$faultId]);
+    $fault = $stmt->fetch();
+    
+    if ($fault && $fault['machine_id']) {
+        $stmt = $pdo->prepare("
+            INSERT INTO maintenance_history 
+            (machine_id, action_type, details, performed_by) 
+            VALUES (:machineId, 'repair', :details, 'user')
+        ");
+        $stmt->execute([
+            ':machineId'=>$fault['machine_id'],
+            ':details'=>"Arıza durumu güncellendi: {$status}"
+        ]);
+    }
+    
+    jsonExit(['ok'=>true]);
+}
+
+// TRELLO ENTEGRASYONU: Konfigürasyon kaydet
+if ($action === 'trello_save_config') {
+    require_once __DIR__ . '/integrations/trello_connector.php';
+    
+    $apiKey = trim($_POST['api_key'] ?? '');
+    $apiToken = trim($_POST['api_token'] ?? '');
+    $boardId = trim($_POST['board_id'] ?? '');
+    $listId = trim($_POST['list_id'] ?? '');
+    
+    if (empty($apiKey) || empty($apiToken)) {
+        jsonExit(['ok'=>false,'error'=>'API key ve token gerekli'],400);
+    }
+    
+    try {
+        $trello = new TrelloConnector($pdo);
+        $trello->saveConfig($apiKey, $apiToken, $boardId, $listId);
+        jsonExit(['ok'=>true,'message'=>'Trello konfigürasyonu kaydedildi']);
+    } catch (Exception $e) {
+        jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+    }
+}
+
+// TRELLO ENTEGRASYONU: Konfigürasyon görüntüle
+if ($action === 'trello_get_config') {
+    require_once __DIR__ . '/integrations/trello_connector.php';
+    
+    try {
+        $trello = new TrelloConnector($pdo);
+        $config = $trello->getConfig();
+        
+        // API token'ı maskele
+        if ($config && !empty($config['api_token'])) {
+            $config['api_token_masked'] = substr($config['api_token'], 0, 8) . '...' . substr($config['api_token'], -4);
+            unset($config['api_token']);
+        }
+        if ($config && !empty($config['api_key'])) {
+            $config['api_key_masked'] = substr($config['api_key'], 0, 8) . '...' . substr($config['api_key'], -4);
+            unset($config['api_key']);
+        }
+        
+        jsonExit(['ok'=>true,'config'=>$config]);
+    } catch (Exception $e) {
+        jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+    }
+}
+
+// TRELLO ENTEGRASYONU: Senkronize et
+if ($action === 'trello_sync') {
+    require_once __DIR__ . '/integrations/trello_connector.php';
+    
+    try {
+        $trello = new TrelloConnector($pdo);
+        $result = $trello->syncFaults();
+        jsonExit($result);
+    } catch (Exception $e) {
+        jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+    }
+}
+
+// TRELLO ENTEGRASYONU: Board'ları listele
+if ($action === 'trello_list_boards') {
+    require_once __DIR__ . '/integrations/trello_connector.php';
+    
+    try {
+        $trello = new TrelloConnector($pdo);
+        $boards = $trello->listBoards();
+        jsonExit(['ok'=>true,'boards'=>$boards]);
+    } catch (Exception $e) {
+        jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+    }
+}
+
+// TRELLO ENTEGRASYONU: Board listelerini getir
+if ($action === 'trello_get_lists') {
+    require_once __DIR__ . '/integrations/trello_connector.php';
+    
+    $boardId = $_GET['board_id'] ?? '';
+    if (empty($boardId)) jsonExit(['ok'=>false,'error'=>'Board ID gerekli'],400);
+    
+    try {
+        $trello = new TrelloConnector($pdo);
+        $lists = $trello->getBoardLists($boardId);
+        jsonExit(['ok'=>true,'lists'=>$lists]);
+    } catch (Exception $e) {
+        jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+    }
 }
 
 jsonExit(['ok'=>false,'error'=>'Bilinmeyen action'],400);

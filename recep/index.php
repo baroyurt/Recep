@@ -41,6 +41,15 @@ $cache_buster = time();
         </div>
         <div class="search-results" id="search-results"></div>
     </div>
+    <!-- TRELLO VE ARIZA YÖNETİMİ -->
+    <div style="display:flex; gap:10px; margin-left:15px;">
+        <a href="trello_settings.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px;">
+            <i class="fab fa-trello"></i> Trello Ayarları
+        </a>
+        <a href="faults.php" class="btn" style="padding:8px 15px; text-decoration:none; display:flex; align-items:center; gap:5px; background: linear-gradient(145deg, #f44336, #d32f2f);">
+            <i class="fas fa-exclamation-triangle"></i> Arızalar
+        </a>
+    </div>
 </div>
 <nav class="rooms">
 <?php foreach($rooms as $i=>$r): ?>
@@ -67,9 +76,37 @@ $cache_buster = time();
 <!-- Bakım durumu buraya JavaScript ile eklenecek -->
 </div>
 <div class="form-actions">
+<button id="history-btn">📜 Geçmiş</button>
+<button id="faults-btn">⚠️ Arızalar</button>
 <button id="edit-btn">✏️ Düzenle</button>
 <button id="delete-btn" class="danger">🗑️ Sil</button>
 <button id="close-info">Kapat</button>
+</div>
+</div>
+</div>
+
+<!-- Modal: Makina Geçmişi -->
+<div id="history-modal" class="modal hidden">
+<div class="modal-content" style="max-width: 800px;">
+<h2>📜 MAKİNA GEÇMİŞİ</h2>
+<div id="history-content" style="max-height: 500px; overflow-y: auto;">
+<!-- History buraya JavaScript ile eklenecek -->
+</div>
+<div class="form-actions">
+<button id="close-history">Kapat</button>
+</div>
+</div>
+</div>
+
+<!-- Modal: Makina Arızaları -->
+<div id="machine-faults-modal" class="modal hidden">
+<div class="modal-content" style="max-width: 800px;">
+<h2>⚠️ MAKİNA ARIZALARI</h2>
+<div id="machine-faults-content" style="max-height: 500px; overflow-y: auto;">
+<!-- Faults buraya JavaScript ile eklenecek -->
+</div>
+<div class="form-actions">
+<button id="close-machine-faults">Kapat</button>
 </div>
 </div>
 </div>
@@ -112,6 +149,7 @@ $cache_buster = time();
 <script>
 const ROOMS = <?php echo json_encode($rooms, JSON_UNESCAPED_UNICODE); ?>;
 </script>
+<script src="js/history.js?v=<?php echo $cache_buster; ?>"></script>
 <script src="js/app.js?v=<?php echo $cache_buster; ?>"></script>
 </body>
 </html>
