@@ -179,11 +179,8 @@
         <h1><i class="fas fa-chart-bar"></i> İstatistikler ve Raporlar</h1>
         
         <div class="actions">
-            <button class="btn" onclick="exportToExcel()">
-                <i class="fas fa-file-excel"></i> Excel'e Aktar
-            </button>
-            <button class="btn" onclick="generateReport()">
-                <i class="fas fa-file-pdf"></i> Rapor Oluştur
+            <button class="btn" onclick="window.print()">
+                <i class="fas fa-print"></i> Yazdır
             </button>
             <button class="btn" onclick="window.location.reload()">
                 <i class="fas fa-sync"></i> Yenile
@@ -457,16 +454,6 @@
                 console.error('İstatistikler yüklenemedi:', error);
                 alert('İstatistikler yüklenemedi: ' + error.message);
             }
-        }
-        
-        function exportToExcel() {
-            alert('Excel export özelliği yakında eklenecek!');
-            // TODO: Implement Excel export
-        }
-        
-        function generateReport() {
-            alert('PDF rapor oluşturma özelliği yakında eklenecek!');
-            // TODO: Implement PDF report generation
         }
         
         // Initialize

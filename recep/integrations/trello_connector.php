@@ -220,7 +220,12 @@ class TrelloConnector {
             }
             
             // Son senkronizasyon zamanını güncelle
-            $this->pdo->exec("UPDATE trello_config SET last_sync = NOW() WHERE id = (SELECT MAX(id) FROM (SELECT id FROM trello_config) as tmp)");
+            $stmt = $this->pdo->query("SELECT MAX(id) as max_id FROM trello_config");
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && $result['max_id']) {
+                $stmt = $this->pdo->prepare("UPDATE trello_config SET last_sync = NOW() WHERE id = :id");
+                $stmt->execute([':id' => $result['max_id']]);
+            }
             
             return [
                 'success' => true,
@@ -243,7 +248,7 @@ class TrelloConnector {
      */
     public function saveConfig($apiKey, $apiToken, $boardId = null, $listId = null) {
         // Mevcut config var mı kontrol et
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM trello_config");
+        $stmt = $this->pdo->query("SELECT MAX(id) as max_id, COUNT(*) as count FROM trello_config");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($result['count'] > 0) {
@@ -255,22 +260,28 @@ class TrelloConnector {
                     board_id = :boardId, 
                     list_id = :listId,
                     updated_at = NOW()
-                WHERE id = (SELECT MAX(id) FROM (SELECT id FROM trello_config) as tmp)
+                WHERE id = :id
             ");
+            $stmt->execute([
+                ':apiKey' => $apiKey,
+                ':apiToken' => $apiToken,
+                ':boardId' => $boardId,
+                ':listId' => $listId,
+                ':id' => $result['max_id']
+            ]);
         } else {
             // Yeni ekle
             $stmt = $this->pdo->prepare("
                 INSERT INTO trello_config (api_key, api_token, board_id, list_id) 
                 VALUES (:apiKey, :apiToken, :boardId, :listId)
             ");
+            $stmt->execute([
+                ':apiKey' => $apiKey,
+                ':apiToken' => $apiToken,
+                ':boardId' => $boardId,
+                ':listId' => $listId
+            ]);
         }
-        
-        $stmt->execute([
-            ':apiKey' => $apiKey,
-            ':apiToken' => $apiToken,
-            ':boardId' => $boardId,
-            ':listId' => $listId
-        ]);
         
         // Config'i yeniden yükle
         $this->loadConfig();

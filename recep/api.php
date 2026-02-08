@@ -324,15 +324,24 @@ if ($action === 'update_fault_status') {
         jsonExit(['ok'=>false,'error'=>'Geçersiz durum'],400);
     }
     
-    $resolvedDate = ($status === 'resolved') ? 'NOW()' : 'NULL';
-    
-    $stmt = $pdo->prepare("
-        UPDATE machine_faults 
-        SET status = :status, 
-            resolved_date = $resolvedDate,
-            updated_at = NOW()
-        WHERE id = :faultId
-    ");
+    // Update fault status
+    if ($status === 'resolved') {
+        $stmt = $pdo->prepare("
+            UPDATE machine_faults 
+            SET status = :status, 
+                resolved_date = NOW(),
+                updated_at = NOW()
+            WHERE id = :faultId
+        ");
+    } else {
+        $stmt = $pdo->prepare("
+            UPDATE machine_faults 
+            SET status = :status, 
+                resolved_date = NULL,
+                updated_at = NOW()
+            WHERE id = :faultId
+        ");
+    }
     $stmt->execute([':status'=>$status, ':faultId'=>$faultId]);
     
     // History'ye ekle
@@ -342,7 +351,7 @@ if ($action === 'update_fault_status') {
     
     if ($fault && $fault['machine_id']) {
         $stmt = $pdo->prepare("
-            INSERT INTO maintenance_history 
+            INSERT INTO maintenance_history
             (machine_id, action_type, details, performed_by) 
             VALUES (:machineId, 'repair', :details, 'user')
         ");
