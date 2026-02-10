@@ -1,4 +1,4 @@
-// js/app.js - BRAND/MODEL/GAME_TYPE AYRIŞTIRILDI
+// js/app.js - BRAND/MODEL/GAME_TYPE AYRIŞTIRILDI + AUTH + CSV IMPORT + COUNTERS
 (function(){
 // ARAMA SİSTEMİ DEĞİŞKENLERİ
 let searchTimeout = null;
@@ -10,8 +10,21 @@ let url = 'api.php';
 if (params.query) {
 url += '?' + new URLSearchParams(params.query);
 }
-if (method === 'GET') return fetch(url).then(r=>r.json());
-return fetch(url, {method:'POST', body: (params.body instanceof FormData)?params.body:new URLSearchParams(params.body)}).then(r=>r.json());
+const options = {method};
+if (method === 'POST') {
+if (params.body instanceof FormData) {
+options.body = params.body;
+} else {
+options.body = new URLSearchParams(params.body);
+}
+}
+return fetch(url, options).then(r => {
+if (r.status === 401) {
+window.location.href = 'login.php';
+return Promise.reject('Unauthorized');
+}
+return r.json();
+});
 };
 const map = document.getElementById('map');
 const roomLabel = document.getElementById('current-room');
@@ -479,6 +492,7 @@ document.getElementById('edit-brand').value = m.brand;
 document.getElementById('edit-model').value = m.model;
 document.getElementById('edit-game-type').value = m.game_type || '';
 document.getElementById('edit-date').value = m.maintenance_date;
+document.getElementById('edit-maintenance-person').value = m.maintenance_person || '';
 document.getElementById('edit-note').value = m.note || '';
 editRoom.textContent = m.room;
 infoModal.classList.add('hidden');
@@ -532,8 +546,23 @@ const res = await api({query:{action:'list', room: currentRoom}});
 if (res.ok) {
 machines = res.machines;
 renderMachines();
+updateMachineCounts();
 } else {
 console.error(res);
+}
+}
+// MAKİNA SAYAÇLARINI GÜNCELLE
+async function updateMachineCounts() {
+try {
+const res = await api({query:{action:'get_machine_counts'}});
+if (res.ok) {
+const roomCount = res.counts.rooms[currentRoom] || 0;
+const totalCount = res.counts.total || 0;
+document.getElementById('room-machine-count').textContent = roomCount;
+document.getElementById('total-machine-count').textContent = totalCount;
+}
+} catch (err) {
+console.error('Counter update failed:', err);
 }
 }
 function getMaintenanceStatus(maintenanceDate) {
@@ -1040,6 +1069,7 @@ infoDiv.innerHTML = `
      <div class="info-row"> <span class="label">Model:</span> <span class="value" id="info-model"></span> </div>
      <div class="info-row"> <span class="label">Oyun Çeşidi:</span> <span class="value" id="info-game-type"></span> </div>
      <div class="info-row"> <span class="label">Bakım Tarihi:</span> <span class="value" id="info-date"></span> </div>
+     <div class="info-row"> <span class="label">Bakım Yapan:</span> <span class="value" id="info-maintenance-person"></span> </div>
      <div class="info-row full"> <span class="label">Not:</span> <span class="value" id="info-note"></span> </div>
      <div class="info-row">
          <span class="label">Bakım Durumu:</span>
@@ -1053,6 +1083,7 @@ document.getElementById('info-brand').textContent = m.brand;
 document.getElementById('info-model').textContent = m.model;
 document.getElementById('info-game-type').textContent = m.game_type || '-';
 document.getElementById('info-date').textContent = m.maintenance_date;
+document.getElementById('info-maintenance-person').textContent = m.maintenance_person || '-';
 document.getElementById('info-note').textContent = m.note || '-';
 infoModal.classList.remove('hidden');
 }
@@ -1251,6 +1282,94 @@ legend.innerHTML = `
 `;
 map.appendChild(legend);
 }
+
+// CSV İMPORT İŞLEMLERİ
+const csvImportBtn = document.getElementById('import-csv-btn');
+const csvImportModal = document.getElementById('csv-import-modal');
+const csvImportForm = document.getElementById('csv-import-form');
+const csvFileInput = document.getElementById('csv-file');
+const cancelCsvImport = document.getElementById('cancel-csv-import');
+const csvProgress = document.getElementById('csv-import-progress');
+const csvProgressFill = document.getElementById('csv-progress-fill');
+const csvProgressText = document.getElementById('csv-progress-text');
+
+if (csvImportBtn) {
+csvImportBtn.addEventListener('click', () => {
+csvImportModal.classList.remove('hidden');
+});
+}
+
+if (cancelCsvImport) {
+cancelCsvImport.addEventListener('click', () => {
+csvImportModal.classList.add('hidden');
+csvImportForm.reset();
+csvProgress.style.display = 'none';
+});
+}
+
+if (csvImportForm) {
+csvImportForm.addEventListener('submit', async (e) => {
+e.preventDefault();
+const fileInput = csvFileInput;
+if (!fileInput.files || !fileInput.files[0]) {
+alert('Lütfen bir CSV dosyası seçin!');
+return;
+}
+
+const formData = new FormData();
+formData.append('csv_file', fileInput.files[0]);
+
+// Progress göster
+csvProgress.style.display = 'block';
+csvProgressFill.style.width = '10%';
+csvProgressText.textContent = 'Yükleniyor...';
+
+try {
+const response = await fetch('api.php?action=import_csv', {
+method: 'POST',
+body: formData
+});
+
+csvProgressFill.style.width = '50%';
+
+const result = await response.json();
+csvProgressFill.style.width = '100%';
+csvProgressText.textContent = '100%';
+
+if (result.ok) {
+setTimeout(() => {
+alert(`Başarılı! ${result.imported} makina içe aktarıldı.`);
+csvImportModal.classList.add('hidden');
+csvImportForm.reset();
+csvProgress.style.display = 'none';
+loadMachines();
+updateMachineCounts();
+}, 500);
+} else {
+alert('Hata: ' + (result.error || 'İçe aktarma başarısız'));
+csvProgress.style.display = 'none';
+}
+} catch (err) {
+console.error('CSV import error:', err);
+alert('İçe aktarma hatası: ' + err.message);
+csvProgress.style.display = 'none';
+}
+});
+}
+
+// ADMİN KONTROLÜ
+if (typeof IS_ADMIN !== 'undefined' && !IS_ADMIN) {
+// Admin değilse bazı özellikleri gizle
+const adminElements = [
+document.getElementById('add-machine'),
+document.getElementById('import-csv-btn'),
+document.getElementById('delete-btn')
+];
+adminElements.forEach(el => {
+if (el) el.style.display = 'none';
+});
+}
+
 // GLOBAL FONKSİYONLAR
 window.showGroupInfo = showGroupInfo;
 window.updateGroupMaintenanceDate = updateGroupMaintenanceDate;
@@ -1261,5 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 setTimeout(initializeSearch, 500);
 // Tüm makineleri cache'le (background'da)
 setTimeout(loadAllMachines, 1000);
+// Sayaçları yükle
+setTimeout(updateMachineCounts, 1000);
 });
 })();
