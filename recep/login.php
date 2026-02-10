@@ -8,6 +8,8 @@ if (isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/config.php';
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -16,15 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($username && $password) {
         try {
-            $dbHost = '127.0.0.1';
-            $dbName = 'slot_db';
-            $dbUser = 'root';
-            $dbPass = '';
-            $dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
-            $pdo = new PDO($dsn, $dbUser, $dbPass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
+            $pdo = new PDO(DB_DSN, DB_USER, DB_PASS, PDO_OPTIONS);
             
             $stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username");
             $stmt->execute([':username' => $username]);

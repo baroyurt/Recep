@@ -3,9 +3,6 @@
 header('Content-Type: application/json; charset=utf-8');
 // Session başlat ve kimlik doğrulama kontrolü
 session_start();
-if (session_status() === PHP_SESSION_NONE) {
-session_start();
-}
 
 // Kimlik doğrulama gerekli mi kontrol et
 $publicActions = ['login']; // Login işlemi hariç tüm işlemler kimlik doğrulama gerektirir
@@ -22,16 +19,10 @@ $userId = $_SESSION['user_id'] ?? null;
 $userRole = $_SESSION['user_role'] ?? 'user';
 $username = $_SESSION['username'] ?? 'system';
 $isAdmin = ($userRole === 'admin');
-$dbHost = '127.0.0.1';
-$dbName = 'slot_db';
-$dbUser = 'root';
-$dbPass = '';
-$dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
+
+require_once __DIR__ . '/config.php';
 try {
-$pdo = new PDO($dsn, $dbUser, $dbPass, [
-PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+$pdo = new PDO(DB_DSN, DB_USER, DB_PASS, PDO_OPTIONS);
 } catch (Exception $e) {
 http_response_code(500);
 echo json_encode(['ok'=>false,'error'=>'DB bağlantı hatası'], JSON_UNESCAPED_UNICODE);
@@ -45,7 +36,7 @@ exit;
 }
 
 // Admin kontrolü gerektiren işlemler
-$adminOnlyActions = ['create', 'delete', 'move_group', 'batch_update'];
+$adminOnlyActions = ['create', 'delete', 'move_group', 'batch_update', 'import_csv'];
 if (in_array($action, $adminOnlyActions) && !$isAdmin) {
 jsonExit(['ok' => false, 'error' => 'Bu işlem için yönetici yetkisi gerekli'], 403);
 }
@@ -432,9 +423,7 @@ jsonExit(['ok'=>true,'counts'=>$counts]);
 }
 // CSV İÇE AKTAR
 if ($action === 'import_csv') {
-if (!$isAdmin) {
-jsonExit(['ok' => false, 'error' => 'Bu işlem için yönetici yetkisi gerekli'], 403);
-}
+// Admin kontrolü zaten adminOnlyActions array'inde yapılıyor
 if (!isset($_FILES['csv_file'])) {
 jsonExit(['ok'=>false,'error'=>'CSV dosyası yüklenmedi'],400);
 }
@@ -445,6 +434,13 @@ jsonExit(['ok'=>false,'error'=>'Dosya yükleme hatası'],400);
 $filePath = $file['tmp_name'];
 $imported = 0;
 $errors = [];
+
+// Makina pozisyon sabitleri
+define('CSV_IMPORT_MIN_X', 100);
+define('CSV_IMPORT_MAX_X', 900);
+define('CSV_IMPORT_MIN_Y', 100);
+define('CSV_IMPORT_MAX_Y', 600);
+
 try {
 $pdo->beginTransaction();
 if (($handle = fopen($filePath, 'r')) !== false) {
@@ -486,8 +482,8 @@ if ($stmt->fetch()) {
 continue; // Duplicate, skip
 }
 // Random pozisyon
-$x = rand(100, 900);
-$y = rand(100, 600);
+$x = rand(CSV_IMPORT_MIN_X, CSV_IMPORT_MAX_X);
+$y = rand(CSV_IMPORT_MIN_Y, CSV_IMPORT_MAX_Y);
 $stmt = $pdo->prepare("
 INSERT INTO machines
 (room, machine_number, brand, model, game_type, maintenance_date, x, y, size, rotation)

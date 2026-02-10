@@ -1,17 +1,14 @@
 <?php
 // db_init_mysql.php - VIP MAKİNELER EKLENDİ + BRAND/MODEL AYRIŞTIRILDI + USERS + MAINTENANCE_PERSON
-$dbHost = '127.0.0.1';
-$dbUser = 'root';
-$dbPass = '';
-$charset = 'utf8mb4';
+require_once __DIR__ . '/config.php';
 try {
-$pdo = new PDO("mysql:host={$dbHost};charset={$charset}", $dbUser, $dbPass, [
+$pdo = new PDO(sprintf('mysql:host=%s;charset=%s', DB_HOST, DB_CHARSET), DB_USER, DB_PASS, [
 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 // DB'yi TAM SIFIRLA
-$pdo->exec("DROP DATABASE IF EXISTS `slot_db`");
-$pdo->exec("CREATE DATABASE `slot_db` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
-$pdo->exec("USE `slot_db`");
+$pdo->exec("DROP DATABASE IF EXISTS `" . DB_NAME . "`");
+$pdo->exec("CREATE DATABASE `" . DB_NAME . "` CHARACTER SET " . DB_CHARSET . " COLLATE " . DB_CHARSET . "_unicode_ci");
+$pdo->exec("USE `" . DB_NAME . "`");
 // Users tablosu - Kimlik doğrulama için
 $pdo->exec("
 CREATE TABLE `users` (

@@ -8,9 +8,6 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if (session_status() === PHP_SESSION_NONE) {
-session_start();
-}
 // CSRF Token oluştur
 if (empty($_SESSION['csrf_token'])) {
 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -46,7 +43,7 @@ $cache_buster = time();
 <?php if ($isAdmin): ?>
 <span class="user-badge admin-badge" title="Yönetici">👑 Admin</span>
 <?php else: ?>
-<span class="user-badge user-badge" title="Kullanıcı">👤 User</span>
+<span class="user-badge regular-user-badge" title="Kullanıcı">👤 User</span>
 <?php endif; ?>
 <a href="logout.php" class="logout-btn" title="Çıkış Yap">
 <i class="fas fa-sign-out-alt"></i>

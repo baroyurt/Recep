@@ -1,0 +1,23 @@
+# Config files with sensitive data (keep config.php.example in repo)
+# recep/config.php
+
+# Cache and temporary files
+recep/cache/
+*.log
+*.tmp
+/tmp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
