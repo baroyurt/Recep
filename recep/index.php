@@ -96,7 +96,9 @@ title="Makina numarası girin (sadece rakam)">
 <button id="add-machine">➕ Makina Oluştur</button>
 <button id="import-csv-btn" class="import-btn" title="CSV'den makina ekle">📤 CSV İçe Aktar</button>
 <?php endif; ?>
+<?php if ($isAdmin): ?>
 <div class="hint">Makinaları tutup sürükleyin. Yakın konumdayken kenarlara yapışır (snap). Makinaya tıklayıp bilgileri düzenleyebilirsiniz.</div>
+<?php endif; ?>
 </section>
 <section id="map" class="map room-<?php echo strtolower(str_replace([' ', 'İ', 'Ö', 'Ü', 'Ş', 'Ç', 'Ğ'], ['-', 'i', 'o', 'u', 's', 'c', 'g'], $rooms[0])); ?>">
 <!-- Makinalar burada absolute olarak renderlanacak -->

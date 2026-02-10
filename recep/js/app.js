@@ -1389,6 +1389,13 @@ if (el) el.style.display = 'none';
 });
 }
 
+// Close button handler is already set up above at line 499
+// Ensure it works by checking if the element exists
+const closeInfoBtn = document.getElementById('close-info');
+if (closeInfoBtn) {
+console.log('Close button found and event listener should be attached');
+}
+
 // GLOBAL FONKSİYONLAR
 window.showGroupInfo = showGroupInfo;
 window.updateGroupMaintenanceDate = updateGroupMaintenanceDate;
