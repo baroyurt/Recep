@@ -1,6 +1,27 @@
-# Geliştirme Özeti - Casino Bakım Takip Sistemi v2.0
+# Geliştirme Özeti - Casino Bakım Takip Sistemi v2.1
 
-## 🎯 Tamamlanan Gereksinimler
+## 🎯 v2.1 Güncellemesi - Yeni Özellikler
+
+### 1. Bakım Tarihi Geçmişi Takibi ✅
+- **maintenance_dates** tablosu eklendi
+- Tüm bakım tarihleri kaydediliyor
+- Bakım yapan kişi ve notlar saklanıyor
+- UI'da "📅 Bakım Tarihleri" butonu
+- Kronolojik görüntüleme
+
+### 2. Gelişmiş Salonlar Arası Arama ✅
+- Marka, model, oyun türü dahil tüm alanlarda arama
+- Cross-room search (tüm salonlarda)
+- Detaylı sonuç gösterimi (ikonlarla)
+- Otomatik salon değiştirme
+- "Makinaya Git" özelliği
+
+### 3. Renk Kodu Değişiklikleri ✅
+- **Eski:** 0-21/21-28/28+ gün
+- **Yeni:** 0-45/45-60/60+ gün
+- Daha gerçekçi bakım aralıkları
+
+## 🎯 Tamamlanan Gereksinimler (v2.0)
 
 ### 1. CSV'den Makina Ekleme ✅
 - **Dosya**: `table-9dc7be54-8fb6-4946-9592-7eda4e1178fe.csv` (337 makina)

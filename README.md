@@ -2,7 +2,26 @@
 
 ## 🎰 Sistem Özellikleri
 
-### Yeni Özellikler (v2.0)
+### Yeni Özellikler (v2.1) ⭐
+
+1. **Bakım Tarihi Geçmişi**
+   - Tüm bakım tarihleri kaydediliyor
+   - Bakım yapan kişi ve notlarla birlikte
+   - "📅 Bakım Tarihleri" butonu ile görüntüleme
+   - Kronolojik bakım geçmişi
+
+2. **Gelişmiş Cross-Room Arama**
+   - Marka, model, oyun türü dahil tüm alanlarda arama
+   - Tüm salonlarda eşzamanlı arama
+   - Detaylı sonuç gösterimi (ikonlarla)
+   - Otomatik salon değiştirme ve makina vurgulama
+
+3. **Güncellenmiş Renk Kodları**
+   - 🟢 Yeşil: 0-45 gün (Bakım yapıldı)
+   - 🔵 Mavi: 45-60 gün (Bakım yaklaşıyor)
+   - 🔴 Kırmızı: 60+ gün (Bakım gerekli)
+
+### Önceki Özellikler (v2.0)
 
 1. **Kimlik Doğrulama Sistemi**
    - Admin ve kullanıcı rolleri
@@ -252,6 +271,7 @@ Bu proje özel kullanım içindir.
 
 ---
 
-**Versiyon:** 2.0  
+**Versiyon:** 2.1  
 **Tarih:** Şubat 2026  
-**Geliştirici:** GitHub Copilot
+**Geliştirici:** GitHub Copilot  
+**Yenilikler:** Bakım geçmişi takibi, gelişmiş arama, güncellenmiş renk kodları
