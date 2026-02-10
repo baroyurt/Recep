@@ -1,18 +1,29 @@
 <?php
-// db_init_mysql.php - VIP MAKİNELER EKLENDİ + BRAND/MODEL AYRIŞTIRILDI
-$dbHost = '127.0.0.1';
-$dbUser = 'root';
-$dbPass = '';
-$charset = 'utf8mb4';
+// db_init_mysql.php - VIP MAKİNELER EKLENDİ + BRAND/MODEL AYRIŞTIRILDI + USERS + MAINTENANCE_PERSON
+require_once __DIR__ . '/config.php';
 try {
-$pdo = new PDO("mysql:host={$dbHost};charset={$charset}", $dbUser, $dbPass, [
+$pdo = new PDO(sprintf('mysql:host=%s;charset=%s', DB_HOST, DB_CHARSET), DB_USER, DB_PASS, [
 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
 // DB'yi TAM SIFIRLA
-$pdo->exec("DROP DATABASE IF EXISTS `slot_db`");
-$pdo->exec("CREATE DATABASE `slot_db` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
-$pdo->exec("USE `slot_db`");
-// Machines tablosu - GÜNCELLENDİ: brand_model yerine brand, model, game_type
+$pdo->exec("DROP DATABASE IF EXISTS `" . DB_NAME . "`");
+$pdo->exec("CREATE DATABASE `" . DB_NAME . "` CHARACTER SET " . DB_CHARSET . " COLLATE " . DB_CHARSET . "_unicode_ci");
+$pdo->exec("USE `" . DB_NAME . "`");
+// Users tablosu - Kimlik doğrulama için
+$pdo->exec("
+CREATE TABLE `users` (
+`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+`username` VARCHAR(64) NOT NULL UNIQUE,
+`password` VARCHAR(255) NOT NULL,
+`role` ENUM('admin', 'user') DEFAULT 'user',
+`full_name` VARCHAR(128),
+`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+`updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+INDEX idx_username (username),
+INDEX idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
+// Machines tablosu - GÜNCELLENDİ: brand_model yerine brand, model, game_type + maintenance_person
 $pdo->exec("
 CREATE TABLE `machines` (
 `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -22,6 +33,7 @@ CREATE TABLE `machines` (
 `model` VARCHAR(128) NOT NULL,
 `game_type` VARCHAR(128),
 `maintenance_date` DATE NOT NULL,
+`maintenance_person` VARCHAR(128),
 `note` TEXT,
 `x` INT NOT NULL DEFAULT 30,
 `y` INT NOT NULL DEFAULT 30,
@@ -34,7 +46,8 @@ INDEX idx_machine_number (machine_number),
 INDEX idx_brand (brand),
 INDEX idx_model (model),
 INDEX idx_game_type (game_type),
-INDEX idx_maintenance_date (maintenance_date)
+INDEX idx_maintenance_date (maintenance_date),
+INDEX idx_maintenance_person (maintenance_person)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ");
 // Machine Faults tablosu (Trello entegrasyonu için)
@@ -76,6 +89,22 @@ INDEX idx_action_type (action_type),
 INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ");
+// Maintenance Dates tablosu (bakım tarihi geçmişi için)
+$pdo->exec("
+CREATE TABLE `maintenance_dates` (
+`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+`machine_id` INT NOT NULL,
+`maintenance_date` DATE NOT NULL,
+`maintenance_person` VARCHAR(128),
+`note` TEXT,
+`performed_by` VARCHAR(128) DEFAULT 'system',
+`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
+INDEX idx_machine_id (machine_id),
+INDEX idx_maintenance_date (maintenance_date),
+INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
 // Trello Configuration tablosu
 $pdo->exec("
 CREATE TABLE `trello_config` (
@@ -94,6 +123,14 @@ CREATE TABLE `trello_config` (
 if (!is_dir(__DIR__ . '/cache')) {
 mkdir(__DIR__ . '/cache', 0755, true);
 }
+// Varsayılan admin kullanıcısı ekle
+echo "<p style='color:#4caf50;'>👤 Varsayılan kullanıcılar oluşturuluyor...</p>";
+$stmt = $pdo->prepare("INSERT INTO users (username, password, role, full_name) VALUES (?, ?, ?, ?)");
+// Admin kullanıcı - şifre: admin123
+$stmt->execute(['admin', password_hash('admin123', PASSWORD_DEFAULT), 'admin', 'Sistem Yöneticisi']);
+// Normal kullanıcı - şifre: user123
+$stmt->execute(['user', password_hash('user123', PASSWORD_DEFAULT), 'user', 'Normal Kullanıcı']);
+echo "<p style='color:#4caf50;'>✅ Admin: admin/admin123, User: user/user123</p>";
 // YENİ VİP SALON için makineleri ekle
 echo "<p style='color:#4caf50;'>📦 YENİ VİP SALON makineleri ekleniyor...</p>";
 $vipMachines = [
@@ -219,8 +256,15 @@ echo "<div class='success'>";
 echo "<h2>✅ VERITABANI HAZIR!</h2>";
 echo "<p><strong>Slot_db</strong> veritabanı oluşturuldu.</p>";
 echo "<p><strong>YENİ VİP SALON</strong> için " . count($vipMachines) . " makina eklendi.</p>";
+echo "<p><strong>Kullanıcılar:</strong></p>";
+echo "<ul>";
+echo "<li>👑 Admin: <code>admin</code> / <code>admin123</code></li>";
+echo "<li>👤 User: <code>user</code> / <code>user123</code></li>";
+echo "</ul>";
 echo "<p><strong>Değişiklikler:</strong></p>";
 echo "<ul>";
+echo "<li>Kullanıcı kimlik doğrulama sistemi eklendi</li>";
+echo "<li>Bakım yapan kişi (maintenance_person) alanı eklendi</li>";
 echo "<li>Marka ve Model artık ayrı alanlar</li>";
 echo "<li>Yeni 'Oyun Çeşidi' alanı eklendi</li>";
 echo "<li>Makinalar random pozisyonlarda yerleştirildi</li>";

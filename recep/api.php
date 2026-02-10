@@ -1,33 +1,46 @@
 <?php
-// api.php - BRAND/MODEL AYRIŞTIRILDI
+// api.php - BRAND/MODEL AYRIŞTIRILDI + AUTHENTICATION + MAINTENANCE_PERSON
 header('Content-Type: application/json; charset=utf-8');
-// Session başlat
+// Session başlat ve kimlik doğrulama kontrolü
 session_start();
-if (session_status() === PHP_SESSION_NONE) {
-session_start();
+
+// Kimlik doğrulama gerekli mi kontrol et
+$publicActions = ['login']; // Login işlemi hariç tüm işlemler kimlik doğrulama gerektirir
+$action = $_REQUEST['action'] ?? '';
+
+if (!in_array($action, $publicActions) && !isset($_SESSION['user_id'])) {
+http_response_code(401);
+echo json_encode(['ok' => false, 'error' => 'Oturum açılmamış'], JSON_UNESCAPED_UNICODE);
+exit;
 }
-$dbHost = '127.0.0.1';
-$dbName = 'slot_db';
-$dbUser = 'root';
-$dbPass = '';
-$dsn = "mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4";
+
+// Kullanıcı bilgileri
+$userId = $_SESSION['user_id'] ?? null;
+$userRole = $_SESSION['user_role'] ?? 'user';
+$username = $_SESSION['username'] ?? 'system';
+$isAdmin = ($userRole === 'admin');
+
+require_once __DIR__ . '/config.php';
 try {
-$pdo = new PDO($dsn, $dbUser, $dbPass, [
-PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+$pdo = new PDO(DB_DSN, DB_USER, DB_PASS, PDO_OPTIONS);
 } catch (Exception $e) {
 http_response_code(500);
 echo json_encode(['ok'=>false,'error'=>'DB bağlantı hatası'], JSON_UNESCAPED_UNICODE);
 exit;
 }
 $allowedRooms = ['ALÇAK TAVAN','YÜKSEK TAVAN','YENİ VİP SALON','ALT SALON'];
-$action = $_REQUEST['action'] ?? '';
 function jsonExit($data, $code=200){
 http_response_code($code);
 echo json_encode($data, JSON_UNESCAPED_UNICODE);
 exit;
 }
+
+// Admin kontrolü gerektiren işlemler
+$adminOnlyActions = ['create', 'delete', 'move_group', 'batch_update', 'import_csv'];
+if (in_array($action, $adminOnlyActions) && !$isAdmin) {
+jsonExit(['ok' => false, 'error' => 'Bu işlem için yönetici yetkisi gerekli'], 403);
+}
+
 if ($action === 'list') {
 $room = $_GET['room'] ?? '';
 if (!in_array($room, $allowedRooms)) jsonExit(['ok'=>false,'error'=>'Geçersiz salon'],400);
@@ -48,6 +61,7 @@ $brand = trim($_POST['brand'] ?? '');
 $model = trim($_POST['model'] ?? '');
 $gameType = trim($_POST['game_type'] ?? '');
 $date = trim($_POST['maintenance_date'] ?? '');
+$maintenancePerson = trim($_POST['maintenance_person'] ?? '');
 $note = trim($_POST['note'] ?? '');
 $x = (int)($_POST['x'] ?? 30);
 $y = (int)($_POST['y'] ?? 30);
@@ -56,9 +70,9 @@ $rotation = (int)($_POST['rotation'] ?? 0);
 if ($number === '' || $brand === '' || $model === '' || $date === '') {
 jsonExit(['ok'=>false,'error'=>'Eksik alan'],400);
 }
-$stmt = $pdo->prepare("INSERT INTO machines (room, machine_number, brand, model, game_type, maintenance_date, note, x, y, size, rotation, created_at, updated_at) VALUES (:room,:num,:brand,:model,:gameType,:date,:note,:x,:y,:size,:rotation,NOW(),NOW())");
+$stmt = $pdo->prepare("INSERT INTO machines (room, machine_number, brand, model, game_type, maintenance_date, maintenance_person, note, x, y, size, rotation, created_at, updated_at) VALUES (:room,:num,:brand,:model,:gameType,:date,:maintenancePerson,:note,:x,:y,:size,:rotation,NOW(),NOW())");
 $stmt->execute([
-':room'=>$room, ':num'=>$number, ':brand'=>$brand, ':model'=>$model, ':gameType'=>$gameType, ':date'=>$date, ':note'=>$note,
+':room'=>$room, ':num'=>$number, ':brand'=>$brand, ':model'=>$model, ':gameType'=>$gameType, ':date'=>$date, ':maintenancePerson'=>$maintenancePerson, ':note'=>$note,
 ':x'=>$x, ':y'=>$y, ':size'=>$size, ':rotation'=>$rotation
 ]);
 $id = $pdo->lastInsertId();
@@ -66,11 +80,12 @@ $id = $pdo->lastInsertId();
 $stmt = $pdo->prepare("
 INSERT INTO maintenance_history
 (machine_id, action_type, details, performed_by)
-VALUES (:machineId, 'created', :details, 'user')
+VALUES (:machineId, 'created', :details, :performedBy)
 ");
 $stmt->execute([
 ':machineId'=>$id,
-':details'=>"Makina oluşturuldu: {$number} - {$brand} {$model} ({$room})"
+':details'=>"Makina oluşturuldu: {$number} - {$brand} {$model} ({$room})",
+':performedBy'=>$username
 ]);
 $stmt = $pdo->prepare("SELECT * FROM machines WHERE id = :id");
 $stmt->execute([':id'=>$id]);
@@ -104,6 +119,7 @@ $brand = trim($_POST['brand'] ?? '');
 $model = trim($_POST['model'] ?? '');
 $gameType = trim($_POST['game_type'] ?? '');
 $date = trim($_POST['maintenance_date'] ?? '');
+$maintenancePerson = trim($_POST['maintenance_person'] ?? '');
 $note = trim($_POST['note'] ?? '');
 if ($number === '' || $brand === '' || $model === '' || $date === '') {
 jsonExit(['ok'=>false,'error'=>'Eksik alan'],400);
@@ -112,9 +128,9 @@ jsonExit(['ok'=>false,'error'=>'Eksik alan'],400);
 $stmt = $pdo->prepare("SELECT * FROM machines WHERE id=:id");
 $stmt->execute([':id'=>$id]);
 $oldMachine = $stmt->fetch();
-$stmt = $pdo->prepare("UPDATE machines SET machine_number=:num, brand=:brand, model=:model, game_type=:gameType, maintenance_date=:date, note=:note, updated_at=NOW() WHERE id=:id");
+$stmt = $pdo->prepare("UPDATE machines SET machine_number=:num, brand=:brand, model=:model, game_type=:gameType, maintenance_date=:date, maintenance_person=:maintenancePerson, note=:note, updated_at=NOW() WHERE id=:id");
 $stmt->execute([
-':num'=>$number, ':brand'=>$brand, ':model'=>$model, ':gameType'=>$gameType, ':date'=>$date, ':note'=>$note, ':id'=>$id
+':num'=>$number, ':brand'=>$brand, ':model'=>$model, ':gameType'=>$gameType, ':date'=>$date, ':maintenancePerson'=>$maintenancePerson, ':note'=>$note, ':id'=>$id
 ]);
 // History'ye kaydet
 if ($oldMachine) {
@@ -124,16 +140,18 @@ if ($oldMachine['brand'] !== $brand) $changes[] = "Marka: {$oldMachine['brand']}
 if ($oldMachine['model'] !== $model) $changes[] = "Model: {$oldMachine['model']} → {$model}";
 if ($oldMachine['game_type'] !== $gameType) $changes[] = "Oyun Çeşidi: {$oldMachine['game_type']} → {$gameType}";
 if ($oldMachine['maintenance_date'] !== $date) $changes[] = "Bakım Tarihi: {$oldMachine['maintenance_date']} → {$date}";
+if (($oldMachine['maintenance_person'] ?? '') !== $maintenancePerson) $changes[] = "Bakım Yapan: {$oldMachine['maintenance_person']} → {$maintenancePerson}";
 if ($oldMachine['note'] !== $note) $changes[] = "Not güncellendi";
 if (!empty($changes)) {
 $stmt = $pdo->prepare("
 INSERT INTO maintenance_history
 (machine_id, action_type, details, performed_by)
-VALUES (:machineId, 'updated', :details, 'user')
+VALUES (:machineId, 'updated', :details, :performedBy)
 ");
 $stmt->execute([
 ':machineId'=>$id,
-':details'=>implode(', ', $changes)
+':details'=>implode(', ', $changes),
+':performedBy'=>$username
 ]);
 }
 // Eğer bakım tarihi güncellendiyse, ayrı bir maintenance kaydı da ekle
@@ -141,12 +159,27 @@ if ($oldMachine['maintenance_date'] !== $date) {
 $stmt = $pdo->prepare("
 INSERT INTO maintenance_history
 (machine_id, action_type, details, old_value, new_value, performed_by)
-VALUES (:machineId, 'maintenance', 'Bakım tarihi güncellendi', :oldDate, :newDate, 'user')
+VALUES (:machineId, 'maintenance', 'Bakım tarihi güncellendi', :oldDate, :newDate, :performedBy)
 ");
 $stmt->execute([
 ':machineId'=>$id,
 ':oldDate'=>$oldMachine['maintenance_date'],
-':newDate'=>$date
+':newDate'=>$date,
+':performedBy'=>$username
+]);
+
+// Bakım tarihi geçmişine de kaydet
+$stmt = $pdo->prepare("
+INSERT INTO maintenance_dates
+(machine_id, maintenance_date, maintenance_person, note, performed_by)
+VALUES (:machineId, :date, :person, :note, :performedBy)
+");
+$stmt->execute([
+':machineId'=>$id,
+':date'=>$date,
+':person'=>$maintenancePerson,
+':note'=>$note,
+':performedBy'=>$username
 ]);
 }
 }
@@ -233,6 +266,19 @@ ORDER BY created_at DESC
 $stmt->execute([':machineId'=>$machineId]);
 $history = $stmt->fetchAll();
 jsonExit(['ok'=>true,'history'=>$history]);
+}
+// MAKİNANIN BAKIM TARİHLERİNİ GÖRÜNTÜLE
+if ($action === 'get_maintenance_dates') {
+$machineId = (int)($_GET['machine_id'] ?? 0);
+if (!$machineId) jsonExit(['ok'=>false,'error'=>'Eksik machine_id'],400);
+$stmt = $pdo->prepare("
+SELECT * FROM maintenance_dates
+WHERE machine_id = :machineId
+ORDER BY maintenance_date DESC, created_at DESC
+");
+$stmt->execute([':machineId'=>$machineId]);
+$dates = $stmt->fetchAll();
+jsonExit(['ok'=>true,'maintenance_dates'=>$dates]);
 }
 // MAKİNANIN ARIZALARINI GÖRÜNTÜLE
 if ($action === 'get_faults') {
@@ -384,6 +430,116 @@ $lists = $trello->getBoardLists($boardId);
 jsonExit(['ok'=>true,'lists'=>$lists]);
 } catch (Exception $e) {
 jsonExit(['ok'=>false,'error'=>$e->getMessage()],500);
+}
+}
+// MAKİNA SAYILARINI GETIR
+if ($action === 'get_machine_counts') {
+// Tüm makinalar
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM machines");
+$stmt->execute();
+$totalCount = $stmt->fetch()['total'];
+// Odaya göre sayılar
+$stmt = $pdo->prepare("SELECT room, COUNT(*) as count FROM machines GROUP BY room");
+$stmt->execute();
+$roomCounts = $stmt->fetchAll();
+$counts = ['total' => $totalCount, 'rooms' => []];
+foreach ($roomCounts as $rc) {
+$counts['rooms'][$rc['room']] = $rc['count'];
+}
+jsonExit(['ok'=>true,'counts'=>$counts]);
+}
+// CSV İÇE AKTAR
+if ($action === 'import_csv') {
+// Admin kontrolü zaten adminOnlyActions array'inde yapılıyor
+if (!isset($_FILES['csv_file'])) {
+jsonExit(['ok'=>false,'error'=>'CSV dosyası yüklenmedi'],400);
+}
+$file = $_FILES['csv_file'];
+if ($file['error'] !== UPLOAD_ERR_OK) {
+jsonExit(['ok'=>false,'error'=>'Dosya yükleme hatası'],400);
+}
+$filePath = $file['tmp_name'];
+$imported = 0;
+$errors = [];
+
+// Makina pozisyon sabitleri
+define('CSV_IMPORT_MIN_X', 100);
+define('CSV_IMPORT_MAX_X', 900);
+define('CSV_IMPORT_MIN_Y', 100);
+define('CSV_IMPORT_MAX_Y', 600);
+
+try {
+$pdo->beginTransaction();
+if (($handle = fopen($filePath, 'r')) !== false) {
+// İlk satırı (başlık) atla
+$header = fgetcsv($handle);
+$defaultDate = date('Y-m-d');
+while (($row = fgetcsv($handle)) !== false) {
+if (count($row) < 3) continue; // En az 3 sütun olmalı
+// CSV formatı: Sıra,Salon,Makine No,Marka,Model,Oyun Türü
+$machineNumber = trim($row[2] ?? '');
+$room = trim($row[1] ?? '');
+$brand = trim($row[3] ?? 'EGT');
+$model = trim($row[4] ?? '');
+$gameType = trim($row[5] ?? 'Slot');
+if (empty($machineNumber) || empty($room)) {
+$errors[] = "Geçersiz satır: " . implode(',', $row);
+continue;
+}
+// Salon adını kontrol et ve uyarla
+if (!in_array($room, $allowedRooms)) {
+// Yakın eşleşme bul
+$foundRoom = null;
+foreach ($allowedRooms as $ar) {
+if (stripos($ar, $room) !== false || stripos($room, $ar) !== false) {
+$foundRoom = $ar;
+break;
+}
+}
+if (!$foundRoom) {
+$errors[] = "Geçersiz salon: $room (Makina: $machineNumber)";
+continue;
+}
+$room = $foundRoom;
+}
+// Aynı makina numarası zaten varsa atla
+$stmt = $pdo->prepare("SELECT id FROM machines WHERE machine_number = :num");
+$stmt->execute([':num' => $machineNumber]);
+if ($stmt->fetch()) {
+continue; // Duplicate, skip
+}
+// Random pozisyon
+$x = rand(CSV_IMPORT_MIN_X, CSV_IMPORT_MAX_X);
+$y = rand(CSV_IMPORT_MIN_Y, CSV_IMPORT_MAX_Y);
+$stmt = $pdo->prepare("
+INSERT INTO machines
+(room, machine_number, brand, model, game_type, maintenance_date, x, y, size, rotation)
+VALUES (:room, :num, :brand, :model, :gameType, :date, :x, :y, 63, 0)
+");
+$stmt->execute([
+':room' => $room,
+':num' => $machineNumber,
+':brand' => $brand,
+':model' => $model,
+':gameType' => $gameType,
+':date' => $defaultDate,
+':x' => $x,
+':y' => $y
+]);
+$imported++;
+}
+fclose($handle);
+}
+$pdo->commit();
+jsonExit([
+'ok' => true,
+'imported' => $imported,
+'errors' => $errors,
+'message' => "$imported makina başarıyla içe aktarıldı"
+]);
+} catch (Exception $e) {
+$pdo->rollBack();
+jsonExit(['ok'=>false,'error'=>'İçe aktarma hatası: ' . $e->getMessage()],500);
 }
 }
 jsonExit(['ok'=>false,'error'=>'Bilinmeyen action'],400);

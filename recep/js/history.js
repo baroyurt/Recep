@@ -5,10 +5,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         const historyBtn = document.getElementById('history-btn');
         const faultsBtn = document.getElementById('faults-btn');
+        const maintenanceDatesBtn = document.getElementById('maintenance-dates-btn');
         const historyModal = document.getElementById('history-modal');
         const machineFaultsModal = document.getElementById('machine-faults-modal');
+        const maintenanceDatesModal = document.getElementById('maintenance-dates-modal');
         const closeHistory = document.getElementById('close-history');
         const closeMachineFaults = document.getElementById('close-machine-faults');
+        const closeMaintenanceDates = document.getElementById('close-maintenance-dates');
         
         if (!historyBtn || !faultsBtn) {
             console.warn('History or Faults button not found');
@@ -265,6 +268,71 @@
             await loadMachineFaults(machineId);
         });
         
+        
+        // Load maintenance dates
+        async function loadMaintenanceDates(machineId) {
+            try {
+                const response = await fetch(`api.php?action=get_maintenance_dates&machine_id=${machineId}`);
+                const result = await response.json();
+                
+                if (!result.ok) {
+                    throw new Error(result.error || 'Bilinmeyen hata');
+                }
+                
+                const dates = result.maintenance_dates || [];
+                const content = document.getElementById('maintenance-dates-content');
+                
+                if (dates.length === 0) {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <i class="fas fa-calendar-times" style="font-size: 48px; margin-bottom: 15px;"></i>
+                            <p>Henüz bakım tarihi kaydı bulunmuyor.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Render maintenance dates list
+                content.innerHTML = `
+                    <div class="maintenance-dates-list">
+                        ${dates.map((item, index) => `
+                            <div class="maintenance-date-item">
+                                <div class="maintenance-date-header">
+                                    <div class="maintenance-date-date">
+                                        <i class="fas fa-calendar-check"></i> ${item.maintenance_date}
+                                    </div>
+                                    ${item.maintenance_person ? `
+                                        <div class="maintenance-date-person">
+                                            <i class="fas fa-user-cog"></i> ${item.maintenance_person}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                ${item.note ? `
+                                    <div class="maintenance-date-note">
+                                        <i class="fas fa-sticky-note"></i> ${item.note}
+                                    </div>
+                                ` : ''}
+                                <div class="maintenance-date-time">
+                                    <i class="fas fa-clock"></i> Kayıt: ${formatDate(item.created_at)}
+                                    ${item.performed_by !== 'system' ? ` • ${item.performed_by}` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+            } catch (error) {
+                const content = document.getElementById('maintenance-dates-content');
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px;"></i>
+                        <p>Bakım tarihleri yüklenirken hata oluştu:</p>
+                        <p style="color: #999; font-size: 14px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
         closeHistory.addEventListener('click', function() {
             historyModal.classList.add('hidden');
         });
@@ -272,6 +340,33 @@
         closeMachineFaults.addEventListener('click', function() {
             machineFaultsModal.classList.add('hidden');
         });
+        
+        if (closeMaintenanceDates) {
+            closeMaintenanceDates.addEventListener('click', function() {
+                maintenanceDatesModal.classList.add('hidden');
+            });
+        }
+        
+        // Maintenance dates button handler
+        if (maintenanceDatesBtn && maintenanceDatesModal) {
+            maintenanceDatesBtn.addEventListener('click', async function() {
+                const machineId = getCurrentMachineId();
+                if (!machineId) {
+                    alert('Makina ID bulunamadı');
+                    return;
+                }
+                
+                maintenanceDatesModal.classList.remove('hidden');
+                document.getElementById('maintenance-dates-content').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #c9a94f;">
+                        <i class="fas fa-spinner fa-spin fa-3x"></i>
+                        <p>Bakım tarihleri yükleniyor...</p>
+                    </div>
+                `;
+                
+                await loadMaintenanceDates(machineId);
+            });
+        }
         
         // Close on outside click
         historyModal.addEventListener('click', function(e) {
@@ -285,5 +380,13 @@
                 machineFaultsModal.classList.add('hidden');
             }
         });
+        
+        if (maintenanceDatesModal) {
+            maintenanceDatesModal.addEventListener('click', function(e) {
+                if (e.target === maintenanceDatesModal) {
+                    maintenanceDatesModal.classList.add('hidden');
+                }
+            });
+        }
     });
 })();
