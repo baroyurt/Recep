@@ -89,6 +89,22 @@ INDEX idx_action_type (action_type),
 INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ");
+// Maintenance Dates tablosu (bakım tarihi geçmişi için)
+$pdo->exec("
+CREATE TABLE `maintenance_dates` (
+`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+`machine_id` INT NOT NULL,
+`maintenance_date` DATE NOT NULL,
+`maintenance_person` VARCHAR(128),
+`note` TEXT,
+`performed_by` VARCHAR(128) DEFAULT 'system',
+`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE,
+INDEX idx_machine_id (machine_id),
+INDEX idx_maintenance_date (maintenance_date),
+INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
 // Trello Configuration tablosu
 $pdo->exec("
 CREATE TABLE `trello_config` (

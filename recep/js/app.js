@@ -199,13 +199,21 @@ allMachinesCache.forEach(machine => {
     
     // Marka/modelde ara
     const brandModel = String(machine.brand_model || '').toLowerCase();
+    const brand = String(machine.brand || '').toLowerCase();
+    const model = String(machine.model || '').toLowerCase();
+    
+    // Oyun türünde ara
+    const gameType = String(machine.game_type || '').toLowerCase();
     
     // Not'ta ara
     const note = String(machine.note || '').toLowerCase();
     
-    // Arama kriterleri
+    // Arama kriterleri - TÜM ALANLARDA ARA
     if (machineNumber.includes(searchTerm) || 
         brandModel.includes(searchTerm) || 
+        brand.includes(searchTerm) ||
+        model.includes(searchTerm) ||
+        gameType.includes(searchTerm) ||
         note.includes(searchTerm)) {
         
         // Bakım durumunu hesapla
@@ -270,11 +278,22 @@ results.forEach((machine, index) => {
                 ${machine.machine_number}
              </div>
              <div class="search-result-details">
-                ${machine.brand_model} • ${machine.statusText}
+                <div class="search-detail-line">
+                    <i class="fas fa-industry"></i> <strong>Marka:</strong> ${machine.brand || '-'}
+                </div>
+                <div class="search-detail-line">
+                    <i class="fas fa-box"></i> <strong>Model:</strong> ${machine.model || '-'}
+                </div>
+                <div class="search-detail-line">
+                    <i class="fas fa-gamepad"></i> <strong>Oyun:</strong> ${machine.game_type || '-'}
+                </div>
+                <div class="search-detail-status">
+                    ${machine.statusText}
+                </div>
              </div>
          </div>
          <div class="search-result-room">
-            ${machine.room}
+            <i class="fas fa-door-open"></i> ${machine.room}
          </div>
     `;
     
@@ -572,14 +591,14 @@ const maintDate = new Date(maintenanceDate);
 maintDate.setHours(0, 0, 0, 0);
 const diffTime = today - maintDate;
 const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-if (diffDays <= 21) {
+if (diffDays <= 45) {
     return {
         class: 'maintenance-green',
         text: `✅ Bakım yapıldı (${diffDays} gün önce)`,
         days: diffDays,
         status: 'green'
     };
-} else if (diffDays <= 28) {
+} else if (diffDays <= 60) {
     return {
         class: 'maintenance-blue',
         text: `ℹ️ Bakım yaklaşıyor (${diffDays} gün geçti)`,
@@ -1265,15 +1284,15 @@ legend.style.cssText = `
 legend.innerHTML = `
      <div class="status-item">
          <div class="status-color status-green"></div>
-         <span>0-21 gün: Bakım yapıldı</span>
+         <span>0-45 gün: Bakım yapıldı</span>
      </div>
      <div class="status-item">
          <div class="status-color status-blue"></div>
-         <span>21-28 gün: Bakım yaklaşıyor</span>
+         <span>45-60 gün: Bakım yaklaşıyor</span>
      </div>
      <div class="status-item">
          <div class="status-color status-red"></div>
-         <span>28+ gün: Bakım gerekli</span>
+         <span>60+ gün: Bakım gerekli</span>
      </div>
      <div class="status-item">
          <div class="status-color status-group"></div>

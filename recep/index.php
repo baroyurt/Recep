@@ -111,6 +111,7 @@ title="Makina numarası girin (sadece rakam)">
 </div>
 <div class="form-actions">
 <button id="history-btn">📜 Geçmiş</button>
+<button id="maintenance-dates-btn">📅 Bakım Tarihleri</button>
 <button id="faults-btn">⚠️ Arızalar</button>
 <button id="edit-btn">✏️ Düzenle</button>
 <button id="delete-btn" class="danger">🗑️ Sil</button>
@@ -127,6 +128,18 @@ title="Makina numarası girin (sadece rakam)">
 </div>
 <div class="form-actions">
 <button id="close-history">Kapat</button>
+</div>
+</div>
+</div>
+<!-- Modal: Bakım Tarihleri -->
+<div id="maintenance-dates-modal" class="modal hidden">
+<div class="modal-content" style="max-width: 700px;">
+<h2>📅 BAKIM TARİHLERİ GEÇMİŞİ</h2>
+<div id="maintenance-dates-content" style="max-height: 500px; overflow-y: auto;">
+<!-- Maintenance dates buraya JavaScript ile eklenecek -->
+</div>
+<div class="form-actions">
+<button id="close-maintenance-dates">Kapat</button>
 </div>
 </div>
 </div>

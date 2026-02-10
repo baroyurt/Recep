@@ -167,6 +167,20 @@ $stmt->execute([
 ':newDate'=>$date,
 ':performedBy'=>$username
 ]);
+
+// Bakım tarihi geçmişine de kaydet
+$stmt = $pdo->prepare("
+INSERT INTO maintenance_dates
+(machine_id, maintenance_date, maintenance_person, note, performed_by)
+VALUES (:machineId, :date, :person, :note, :performedBy)
+");
+$stmt->execute([
+':machineId'=>$id,
+':date'=>$date,
+':person'=>$maintenancePerson,
+':note'=>$note,
+':performedBy'=>$username
+]);
 }
 }
 jsonExit(['ok'=>true]);
@@ -252,6 +266,19 @@ ORDER BY created_at DESC
 $stmt->execute([':machineId'=>$machineId]);
 $history = $stmt->fetchAll();
 jsonExit(['ok'=>true,'history'=>$history]);
+}
+// MAKİNANIN BAKIM TARİHLERİNİ GÖRÜNTÜLE
+if ($action === 'get_maintenance_dates') {
+$machineId = (int)($_GET['machine_id'] ?? 0);
+if (!$machineId) jsonExit(['ok'=>false,'error'=>'Eksik machine_id'],400);
+$stmt = $pdo->prepare("
+SELECT * FROM maintenance_dates
+WHERE machine_id = :machineId
+ORDER BY maintenance_date DESC, created_at DESC
+");
+$stmt->execute([':machineId'=>$machineId]);
+$dates = $stmt->fetchAll();
+jsonExit(['ok'=>true,'maintenance_dates'=>$dates]);
 }
 // MAKİNANIN ARIZALARINI GÖRÜNTÜLE
 if ($action === 'get_faults') {

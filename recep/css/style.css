@@ -1441,3 +1441,99 @@ font-size: 14px;
         display: none;
     }
 }
+
+/* Enhanced Search Results Styling */
+.search-detail-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 4px 0;
+}
+
+.search-detail-line i {
+    color: var(--gold);
+    font-size: 12px;
+    width: 16px;
+}
+
+.search-detail-status {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.search-result-room i {
+    margin-right: 5px;
+    color: var(--gold);
+}
+
+/* Search result details container */
+.search-result-details {
+    margin-top: 8px;
+}
+
+.search-result-item:hover {
+    background: linear-gradient(145deg, rgba(201, 169, 79, 0.15), rgba(168, 132, 46, 0.08));
+    border-color: rgba(201, 169, 79, 0.3);
+    transform: translateX(2px);
+}
+
+/* Maintenance date history styling */
+.maintenance-dates-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 15px 0;
+}
+
+.maintenance-date-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.maintenance-date-item:hover {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(201, 169, 79, 0.3);
+}
+
+.maintenance-date-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.maintenance-date-date {
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 15px;
+}
+
+.maintenance-date-person {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+}
+
+.maintenance-date-person i {
+    margin-right: 5px;
+    color: var(--gold);
+}
+
+.maintenance-date-note {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.maintenance-date-time {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    margin-top: 5px;
+}
