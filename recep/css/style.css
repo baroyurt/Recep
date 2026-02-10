@@ -1540,3 +1540,20 @@ font-size: 14px;
     font-size: 11px;
     margin-top: 5px;
 }
+
+/* OVERVIEW BUTTON - PURPLE/GOLD GRADIENT */
+.overview-btn {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 50%, #732d91 100%);
+    border: 2px solid rgba(155, 89, 182, 0.4);
+}
+.overview-btn:hover {
+    background: linear-gradient(135deg, #b370cf 0%, #9b59b6 50%, #8e44ad 100%);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow:
+        0 8px 25px rgba(155, 89, 182, 0.4),
+        0 0 20px rgba(155, 89, 182, 0.2);
+    border-color: rgba(155, 89, 182, 0.6);
+}
+.overview-btn:active {
+    transform: translateY(-1px) scale(1);
+}

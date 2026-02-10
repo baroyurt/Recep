@@ -65,6 +65,10 @@ title="Makina numarası girin (sadece rakam)">
 </div>
 <!-- TRELLO VE ARIZA YÖNETİMİ -->
 <div class="action-buttons-container">
+<a href="overview.php" class="action-btn overview-btn" title="Tüm salonların genel görünümü">
+<i class="fas fa-th-large"></i>
+<span>Genel Görünüm</span>
+</a>
 <a href="statistics.php" class="action-btn statistics-btn" title="İstatistiksel analizler ve raporlar">
 <i class="fas fa-chart-bar"></i>
 <span>İstatistikler</span>

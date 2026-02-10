@@ -874,6 +874,10 @@ try {
 }
 // GRUP SÜRÜKLEME (ORİJİNAL KOD - DEĞİŞMEDİ)
 function makeGroupDraggable(groupBtn, groupIds) {
+// Sadece admin kullanıcılar grupları taşıyabilir
+if (typeof IS_ADMIN !== 'undefined' && !IS_ADMIN) {
+return; // Non-admin users cannot drag groups
+}
 let isDragging = false;
 let startX, startY, btnStartX, btnStartY;
 let machineStartPositions = [];
@@ -1120,6 +1124,10 @@ return String(s).replace(/[&<>"']/g, c => ({
 }[c]));
 }
 function makeDraggable(el){
+// Sadece admin kullanıcılar makinaları taşıyabilir
+if (typeof IS_ADMIN !== 'undefined' && !IS_ADMIN) {
+return; // Non-admin users cannot drag machines
+}
 el.addEventListener('pointerdown', (ev)=>{
 if (ev.target.classList.contains('rotate-btn')) return;
 el.setPointerCapture(ev.pointerId);
