@@ -485,9 +485,11 @@ roomBtns.forEach(b=>{
 b.addEventListener('click', ()=> setActiveRoom(b.dataset.room));
 });
 setActiveRoom(currentRoom);
+if (addBtn) {
 addBtn.addEventListener('click', ()=> {
 modal.classList.remove('hidden');
 });
+}
 cancel.addEventListener('click', ()=> {
 modal.classList.add('hidden');
 form.reset();
@@ -518,6 +520,7 @@ infoModal.classList.add('hidden');
 editModal.classList.remove('hidden');
 }
 });
+if (deleteBtn) {
 deleteBtn.addEventListener('click', async ()=> {
 if (!currentMachineId || !confirm('Bu makina silinecek. Emin misiniz?')) return;
 const res = await api({method:'POST', body:{action:'delete', id:currentMachineId}});
@@ -529,6 +532,7 @@ loadMachines();
 alert('Silme hatası: ' + (res.error || ''));
 }
 });
+}
 form.addEventListener('submit', async (e)=>{
 e.preventDefault();
 const fd = new FormData(form);
