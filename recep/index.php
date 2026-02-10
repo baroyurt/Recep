@@ -1,6 +1,13 @@
 <?php
-// index.php - BRAND/MODEL AYRIŞTIRILDI + ARAMA ÇUBUĞU
+// index.php - BRAND/MODEL AYRIŞTIRILDI + ARAMA ÇUBUĞU + AUTHENTICATION
 session_start();
+
+// Kimlik doğrulama kontrolü
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
 if (session_status() === PHP_SESSION_NONE) {
 session_start();
 }
@@ -8,6 +15,13 @@ session_start();
 if (empty($_SESSION['csrf_token'])) {
 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
+
+// Kullanıcı bilgileri
+$username = $_SESSION['username'] ?? 'User';
+$userRole = $_SESSION['user_role'] ?? 'user';
+$fullName = $_SESSION['full_name'] ?? $username;
+$isAdmin = ($userRole === 'admin');
+
 $rooms = ['ALÇAK TAVAN', 'YÜKSEK TAVAN', 'YENİ VİP SALON', 'ALT SALON'];
 $cache_buster = time();
 ?>
@@ -25,6 +39,19 @@ $cache_buster = time();
 <header class="topbar">
 <h1>CASİNO BAKIM TAKİP PROGRAMI</h1>
 <div class="topbar-right">
+<!-- USER INFO -->
+<div class="user-info">
+<i class="fas fa-user-circle"></i>
+<span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
+<?php if ($isAdmin): ?>
+<span class="user-badge admin-badge" title="Yönetici">👑 Admin</span>
+<?php else: ?>
+<span class="user-badge user-badge" title="Kullanıcı">👤 User</span>
+<?php endif; ?>
+<a href="logout.php" class="logout-btn" title="Çıkış Yap">
+<i class="fas fa-sign-out-alt"></i>
+</a>
+</div>
 <!-- ARAMA ÇUBUĞU -->
 <div class="search-container">
 <div class="search-wrapper">
@@ -68,7 +95,10 @@ title="Makina numarası girin (sadece rakam)">
 <main>
 <section class="controls">
 <div class="room-label">Salon: <span id="current-room"><?php echo $rooms[0]; ?></span></div>
+<?php if ($isAdmin): ?>
 <button id="add-machine">➕ Makina Oluştur</button>
+<button id="import-csv-btn" class="import-btn" title="CSV'den makina ekle">📤 CSV İçe Aktar</button>
+<?php endif; ?>
 <div class="hint">Makinaları tutup sürükleyin. Yakın konumdayken kenarlara yapışır (snap). Makinaya tıklayıp bilgileri düzenleyebilirsiniz.</div>
 </section>
 <section id="map" class="map room-<?php echo strtolower(str_replace([' ', 'İ', 'Ö', 'Ü', 'Ş', 'Ç', 'Ğ'], ['-', 'i', 'o', 'u', 's', 'c', 'g'], $rooms[0])); ?>">
@@ -125,6 +155,7 @@ title="Makina numarası girin (sadece rakam)">
 <label>MAKİNA MODELİ<input name="model" required /></label>
 <label>OYUN ÇEŞİDİ<input name="game_type" placeholder="Slot, Link, vb." /></label>
 <label>BAKIM YAPILDIĞI TARİH<input name="maintenance_date" type="date" required /></label>
+<label>BAKIM YAPAN KİŞİ<input name="maintenance_person" placeholder="Bakım yapan teknisyen" /></label>
 <label>NOT<textarea name="note" rows="3"></textarea></label>
 <div class="form-actions">
 <button type="submit">Oluştur</button>
@@ -144,6 +175,7 @@ title="Makina numarası girin (sadece rakam)">
 <label>MAKİNA MODELİ<input name="model" id="edit-model" required /></label>
 <label>OYUN ÇEŞİDİ<input name="game_type" id="edit-game-type" placeholder="Slot, Link, vb." /></label>
 <label>BAKIM YAPILDIĞI TARİH<input name="maintenance_date" id="edit-date" type="date" required /></label>
+<label>BAKIM YAPAN KİŞİ<input name="maintenance_person" id="edit-maintenance-person" placeholder="Bakım yapan teknisyen" /></label>
 <label>NOT<textarea name="note" id="edit-note" rows="3"></textarea></label>
 <div class="form-actions">
 <button type="submit">Kaydet</button>
@@ -152,8 +184,53 @@ title="Makina numarası girin (sadece rakam)">
 </form>
 </div>
 </div>
+<!-- Modal: CSV İçe Aktar -->
+<div id="csv-import-modal" class="modal hidden">
+<div class="modal-content">
+<h2>📤 CSV İÇE AKTAR</h2>
+<p style="margin-bottom: 15px; color: #aaa;">CSV dosyasından makinaları sisteme aktarın.</p>
+<form id="csv-import-form" enctype="multipart/form-data">
+<div class="file-upload-area">
+<input type="file" id="csv-file" name="csv_file" accept=".csv" required />
+<label for="csv-file" class="file-upload-label">
+<i class="fas fa-file-csv"></i>
+<span>CSV Dosyası Seçin</span>
+</label>
+</div>
+<div id="csv-preview" style="display:none; margin-top: 15px;">
+<h3>Önizleme:</h3>
+<div id="csv-preview-content" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px;"></div>
+</div>
+<div class="form-actions">
+<button type="submit" id="csv-upload-btn">Yükle ve İçe Aktar</button>
+<button type="button" id="cancel-csv-import">İptal</button>
+</div>
+</form>
+<div id="csv-import-progress" style="display:none; margin-top: 15px;">
+<div class="progress-bar">
+<div class="progress-bar-fill" id="csv-progress-fill"></div>
+</div>
+<p id="csv-progress-text" style="text-align: center; margin-top: 10px;">0%</p>
+</div>
+</div>
+</div>
+<!-- Machine Counters -->
+<div class="machine-counters">
+<div class="counter-item">
+<i class="fas fa-door-open"></i>
+<span id="room-machine-count">0</span>
+<small>Bu Salon</small>
+</div>
+<div class="counter-item">
+<i class="fas fa-dice"></i>
+<span id="total-machine-count">0</span>
+<small>Toplam</small>
+</div>
+</div>
 <script>
 const ROOMS = <?php echo json_encode($rooms, JSON_UNESCAPED_UNICODE); ?>;
+const USER_ROLE = <?php echo json_encode($userRole); ?>;
+const IS_ADMIN = <?php echo json_encode($isAdmin); ?>;
 </script>
 <script src="js/history.js?v=<?php echo $cache_buster; ?>"></script>
 <script src="js/app.js?v=<?php echo $cache_buster; ?>"></script>
